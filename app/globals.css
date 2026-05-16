@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+:root {
+  --gradient-start: #6366f1;
+  --gradient-mid: #a855f7;
+  --gradient-end: #ec4899;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
