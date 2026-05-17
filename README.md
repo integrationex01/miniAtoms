@@ -1,6 +1,6 @@
 # miniAtoms
 
-A Lovable-style AI Agent App Builder. Users describe app ideas in natural language, and the system generates structured application prototypes with live preview.
+A Lovable-style AI Agent App Builder. Users describe app ideas in natural language, and the system generates structured application prototypes with live, interactive preview.
 
 ## Current Status
 
@@ -9,13 +9,17 @@ A Lovable-style AI Agent App Builder. Users describe app ideas in natural langua
 - [x] Clerk authentication (modal sign-in/sign-up)
 - [x] Route protection via middleware
 - [x] Homepage prompt → login → builder redirect flow
-- [x] Builder page with agent steps & preview placeholders
-- [x] Projects list & project detail placeholder pages
-- [x] API route placeholders
-- [x] **SiliconFlow API integration** (Step 4)
+- [x] SiliconFlow API integration
 - [x] Agent step progress UI with status animation
-- [x] Dynamic app preview rendering based on AppSpec
+- [x] Dynamic, interactive app preview (tabs, forms, records, stats)
 - [x] Fallback AppSpec when API is unavailable
+- [x] **Neon PostgreSQL integration** (Step 5)
+- [x] Save projects to database
+- [x] Project list page with real data
+- [x] Project detail page with interactive preview
+- [x] Delete projects
+- [x] User data isolation (Clerk userId)
+- [x] Auto table creation on first request
 - [x] Vercel-ready deployment
 
 ## Tech Stack
@@ -25,7 +29,7 @@ A Lovable-style AI Agent App Builder. Users describe app ideas in natural langua
 - **Auth**: Clerk
 - **Icons**: lucide-react
 - **AI**: SiliconFlow API (Chat Completions)
-- **Database**: Neon PostgreSQL (next step)
+- **Database**: Neon PostgreSQL (@neondatabase/serverless)
 
 ## Local Development
 
@@ -35,55 +39,84 @@ npm install
 
 # 2. Copy environment variables
 cp .env.example .env.local
-# Fill in your Clerk keys and optionally SiliconFlow keys
 
-# 3. Start dev server
+# 3. Fill in required keys in .env.local:
+#    - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+#    - CLERK_SECRET_KEY
+#    - DATABASE_URL (Neon connection string)
+#    - SILICONFLOW_API_KEY + SILICONFLOW_MODEL (optional, fallback if missing)
+
+# 4. Start dev server
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
+The database table is created automatically on first API request. No manual SQL needed.
+
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key (required) |
-| `CLERK_SECRET_KEY` | Clerk secret key (required) |
-| `SILICONFLOW_API_KEY` | SiliconFlow API key (optional, fallback if missing) |
-| `SILICONFLOW_BASE_URL` | SiliconFlow API base URL (default: `https://api.siliconflow.cn/v1`) |
-| `SILICONFLOW_MODEL` | SiliconFlow model name (optional, e.g. `Qwen/Qwen3-8B`) |
-| `DATABASE_URL` | Neon PostgreSQL connection string (next step) |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Yes | Clerk publishable key |
+| `CLERK_SECRET_KEY` | Yes | Clerk secret key |
+| `DATABASE_URL` | Yes | Neon PostgreSQL connection string |
+| `SILICONFLOW_API_KEY` | No | SiliconFlow API key (fallback if missing) |
+| `SILICONFLOW_BASE_URL` | No | SiliconFlow API base URL (default: `https://api.siliconflow.cn/v1`) |
+| `SILICONFLOW_MODEL` | No | SiliconFlow model name (e.g. `Qwen/Qwen3-8B`) |
+
+## Database
+
+Table `projects`:
+
+```sql
+CREATE TABLE projects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  prompt TEXT NOT NULL,
+  app_spec JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+```
+
+- All queries are scoped by `user_id` (Clerk userId)
+- Created automatically on first API call via `ensureProjectsTable()`
 
 ## How It Works
 
 ### `/api/generate`
+Calls SiliconFlow to generate an AppSpec with interactive preview config. Falls back gracefully if unavailable.
 
-1. Receives `POST { prompt: "..." }` from the Builder page
-2. Calls SiliconFlow Chat Completions with a system prompt that requests structured JSON
-3. Parses and normalizes the AI response into an `AppSpec`
-4. Returns `{ appSpec, source: "siliconflow" }`
-5. If anything fails (no API key, network error, bad response), returns a fallback AppSpec with `{ source: "fallback", warning: "..." }`
+### `/api/projects`
+- `GET` — list current user's projects (newest first)
+- `POST` — save a new project with title, prompt, and AppSpec
 
-### Fallback Strategy
-
-- Missing `SILICONFLOW_API_KEY` or `SILICONFLOW_MODEL` → fallback AppSpec
-- SiliconFlow returns non-2xx → fallback AppSpec
-- JSON parse failure → fallback AppSpec
-- Network error or timeout (30s) → fallback AppSpec
-- The page **never** goes blank
+### `/api/projects/[id]`
+- `GET` — get a single project (scoped to current user)
+- `DELETE` — delete a project (scoped to current user)
 
 ## Vercel Deployment
 
 1. Push code to GitHub
 2. Import the repository in [Vercel](https://vercel.com)
-3. Set all environment variables from `.env.example` in Vercel project settings
-4. Deploy
-5. In the Clerk dashboard, add your production domain to allowed origins
+3. Set all environment variables in Vercel project settings:
+   ```
+   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+   CLERK_SECRET_KEY=
+   SILICONFLOW_API_KEY=
+   SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1
+   SILICONFLOW_MODEL=
+   DATABASE_URL=
+   ```
+4. `DATABASE_URL` must be the Neon connection string
+5. Deploy
+6. In the Clerk dashboard, add your production domain to allowed origins
+7. First visit to `/projects` or first save will auto-create the database table
 
-## Next Steps
+## Current Limitations
 
-- Connect Neon PostgreSQL for project persistence
-- Save generated projects to database
-- Project history list with real data
-- Project detail page with stored AppSpec
-- Continue iterating on saved projects
+- Project update (PUT) is not yet implemented
+- No version history for projects
+- No continue-iteration on saved projects

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FolderOpen, Plus } from "lucide-react";
+import ProjectsClient from "@/components/projects-client";
 
 export default function ProjectsPage() {
   return (
@@ -13,27 +13,7 @@ export default function ProjectsPage() {
           Create new
         </Link>
       </header>
-
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl bg-gray-100 border border-gray-200/60 flex items-center justify-center mx-auto mb-5">
-            <FolderOpen className="w-7 h-7 text-gray-300" />
-          </div>
-          <h2 className="text-lg font-semibold text-gray-800 mb-1">
-            No projects yet
-          </h2>
-          <p className="text-sm text-gray-400 mb-6">
-            Your generated apps will appear here.
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-sm font-medium shadow-lg shadow-purple-500/20 hover:shadow-purple-500/35 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            Create your first app
-          </Link>
-        </div>
-      </div>
+      <ProjectsClient />
     </div>
   );
 }

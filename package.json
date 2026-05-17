@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^7.3.5",
+    "@neondatabase/serverless": "^1.1.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.16.0",
     "next": "^16.2.6",

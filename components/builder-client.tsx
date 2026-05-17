@@ -4,7 +4,16 @@ import { useState, useEffect, useCallback } from "react";
 import type { AppSpec, AgentStep } from "@/lib/types";
 import AgentSteps from "@/components/agent-steps";
 import AppPreview from "@/components/app-preview";
-import { AlertTriangle, Zap, Info } from "lucide-react";
+import {
+  AlertTriangle,
+  Zap,
+  Info,
+  Save,
+  CheckCircle2,
+  ExternalLink,
+  Loader2,
+} from "lucide-react";
+import Link from "next/link";
 
 const DEFAULT_STEPS: AgentStep[] = [
   {
@@ -52,24 +61,28 @@ export default function BuilderClient({
   const [warning, setWarning] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Save state
+  const [saving, setSaving] = useState(false);
+  const [savedProjectId, setSavedProjectId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const generate = useCallback(async () => {
     setSteps(DEFAULT_STEPS);
     setAppSpec(null);
     setSource(null);
     setWarning(null);
     setError(null);
+    setSavedProjectId(null);
+    setSaveError(null);
 
-    // Step 1: understand
     setSteps((prev) => updateStep(prev, "understand", "running"));
     await new Promise((r) => setTimeout(r, 600));
     setSteps((prev) => updateStep(prev, "understand", "completed"));
 
-    // Step 2: plan
     setSteps((prev) => updateStep(prev, "plan", "running"));
     await new Promise((r) => setTimeout(r, 400));
     setSteps((prev) => updateStep(prev, "plan", "completed"));
 
-    // Step 3: generate (call API)
     setSteps((prev) => updateStep(prev, "components", "running"));
 
     try {
@@ -95,7 +108,6 @@ export default function BuilderClient({
       setError(msg);
     }
 
-    // Step 4: preview
     setSteps((prev) => updateStep(prev, "preview", "running"));
     await new Promise((r) => setTimeout(r, 400));
     setSteps((prev) => updateStep(prev, "preview", "completed"));
@@ -108,13 +120,43 @@ export default function BuilderClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleSave = async () => {
+    if (!appSpec || saving) return;
+    setSaving(true);
+    setSaveError(null);
+
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: appSpec.name,
+          prompt: initialPrompt,
+          appSpec,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Save failed (${res.status})`);
+      }
+
+      const data = await res.json();
+      setSavedProjectId(data.project.id);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setSaveError(msg);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <>
       {/* Left panel */}
       <div className="lg:col-span-2 border-r border-gray-200/60 p-5 flex flex-col gap-5 overflow-y-auto">
         <AgentSteps steps={steps} />
 
-        {/* Generation info */}
         {source && (
           <div className="rounded-xl border border-gray-200/60 bg-white/60 backdrop-blur-sm p-4">
             <div className="flex items-center gap-2 mb-2">
@@ -155,6 +197,56 @@ export default function BuilderClient({
               <AlertTriangle className="w-3.5 h-3.5 text-red-400 mt-0.5 shrink-0" />
               <p className="text-xs text-red-600">{error}</p>
             </div>
+          </div>
+        )}
+
+        {/* Save section */}
+        {appSpec && (
+          <div className="rounded-xl border border-gray-200/60 bg-white/60 backdrop-blur-sm p-4">
+            {savedProjectId ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-emerald-600">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span className="text-sm font-medium">Project saved</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/projects/${savedProjectId}`}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-500 text-white hover:bg-indigo-400 transition-colors"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    View Project
+                  </Link>
+                  <Link
+                    href="/projects"
+                    className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                  >
+                    View All Projects
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-medium bg-gray-900 text-white hover:bg-gray-800 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-3.5 h-3.5" />
+                    Save Project
+                  </>
+                )}
+              </button>
+            )}
+            {saveError && (
+              <p className="text-xs text-red-500 mt-2">{saveError}</p>
+            )}
           </div>
         )}
 
