@@ -1,16 +1,9 @@
-"use client";
-
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
 import { ArrowLeft, Sparkles } from "lucide-react";
-import AgentStepsPlaceholder from "@/components/agent-steps-placeholder";
-import AppPreviewPlaceholder from "@/components/app-preview-placeholder";
+import { Suspense } from "react";
+import BuilderClient from "@/components/builder-client";
 
-function BuilderContent() {
-  const searchParams = useSearchParams();
-  const prompt = searchParams.get("prompt");
-
+function BuilderContent({ prompt }: { prompt: string }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100 flex flex-col">
       <header className="flex items-center justify-between px-6 py-3 bg-white/80 backdrop-blur-xl border-b border-gray-200/60">
@@ -39,19 +32,21 @@ function BuilderContent() {
         </Link>
       </header>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-5 gap-0">
-        <div className="lg:col-span-2 border-r border-gray-200/60 p-6">
-          <AgentStepsPlaceholder prompt={prompt} />
-        </div>
-        <div className="lg:col-span-3 p-6">
-          <AppPreviewPlaceholder />
-        </div>
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-5">
+        <BuilderClient initialPrompt={prompt} />
       </div>
     </div>
   );
 }
 
-export default function BuilderPage() {
+export default async function BuilderPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ prompt?: string }>;
+}) {
+  const params = await searchParams;
+  const prompt = params.prompt || "";
+
   return (
     <Suspense
       fallback={
@@ -60,7 +55,7 @@ export default function BuilderPage() {
         </div>
       }
     >
-      <BuilderContent />
+      <BuilderContent prompt={prompt} />
     </Suspense>
   );
 }
