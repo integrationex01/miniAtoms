@@ -172,7 +172,7 @@ export default function BuilderClient({
 
       {/* Right panel */}
       <div className="lg:col-span-3 p-5">
-        <AppPreview appSpec={appSpec} />
+        <AppPreview appSpec={appSpec} key={appSpec?.name || "empty"} />
       </div>
     </>
   );

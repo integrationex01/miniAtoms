@@ -2,17 +2,44 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { createFallbackAppSpec, extractJsonFromText, normalizeAppSpec } from "@/lib/app-spec";
 
-const SYSTEM_PROMPT = `You are an AI app architect. Given a user's app idea, generate a structured app specification.
+const SYSTEM_PROMPT = `You are an AI app architect. Given a user's app idea, generate a structured app specification with interactive preview configuration.
 
-Return ONLY a JSON object with this exact structure. No markdown, no explanation, no code blocks.
+Return ONLY a JSON object. No markdown, no explanation, no code blocks.
 
+JSON structure:
 {
   "name": "short app name",
-  "description": "one-sentence description of the app",
+  "description": "one-sentence description",
   "pages": ["page1", "page2", "page3", "page4"],
-  "components": ["Header", "Navigation", "ContentCard", "Sidebar", "Footer"],
+  "components": ["Header", "Navigation", "ContentCard", "Form", "RecordList"],
   "features": ["feature1", "feature2", "feature3", "feature4"],
-  "theme": "light"
+  "theme": "light",
+  "interactivePreview": {
+    "primaryEntityName": "Transaction",
+    "tabs": ["Overview", "Add New", "Stats", "Records"],
+    "defaultTab": "Overview",
+    "formTitle": "Add new record",
+    "formFields": [
+      {"id": "title", "label": "Title", "type": "text", "placeholder": "Enter title"},
+      {"id": "amount", "label": "Amount", "type": "number", "placeholder": "Enter amount"},
+      {"id": "type", "label": "Type", "type": "select", "options": ["Income", "Expense"]},
+      {"id": "category", "label": "Category", "type": "select", "options": ["Food", "Transport", "Salary", "Other"]},
+      {"id": "note", "label": "Note", "type": "textarea", "placeholder": "Additional notes"}
+    ],
+    "sampleRecords": [
+      {"id": "r1", "title": "Lunch", "subtitle": "Food · Today", "amount": 35, "type": "expense", "category": "Food", "createdAt": "Today"},
+      {"id": "r2", "title": "Salary", "subtitle": "Income · This month", "amount": 8000, "type": "income", "category": "Salary", "createdAt": "This month"}
+    ],
+    "metrics": [
+      {"id": "total", "label": "Total records", "value": "2"},
+      {"id": "income", "label": "Income", "value": "¥8,000"},
+      {"id": "expense", "label": "Expense", "value": "¥35"}
+    ],
+    "actions": [
+      {"id": "add", "label": "Add record", "type": "add_record"},
+      {"id": "delete", "label": "Delete record", "type": "delete_record"}
+    ]
+  }
 }
 
 Rules:
@@ -20,8 +47,16 @@ Rules:
 - "pages" must have at least 4 items
 - "components" must have at least 5 items
 - "features" must have at least 4 items
-- Content language should match the user's prompt language
-- Field names must always be in English`;
+- "tabs" must have at least 3 items
+- "formFields" must have at least 3 items
+- "sampleRecords" must have at least 2 items
+- "metrics" must have at least 3 items
+- field.type must be one of: "text", "number", "select", "textarea"
+- record.type must be one of: "income", "expense", "neutral"
+- action.type must be one of: "add_record", "delete_record", "toggle_status", "switch_tab"
+- Content language should match the user's prompt language (Chinese prompt → Chinese content, English → English)
+- Field names must always be in English
+- Tailor formFields, sampleRecords, metrics, and tabs to the specific app type (accounting, fitness, tasks, learning, etc.)`;
 
 export async function POST(req: Request) {
   // Auth check
@@ -64,7 +99,7 @@ export async function POST(req: Request) {
   // Call SiliconFlow
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000);
+    const timeout = setTimeout(() => controller.abort(), 60000);
 
     const res = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
@@ -79,7 +114,7 @@ export async function POST(req: Request) {
           { role: "user", content: prompt },
         ],
         temperature: 0.4,
-        max_tokens: 1200,
+        max_tokens: 2000,
         response_format: { type: "json_object" },
       }),
       signal: controller.signal,
