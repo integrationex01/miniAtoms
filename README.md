@@ -1,6 +1,6 @@
 # miniAtoms
 
-A Lovable-style AI Agent App Builder. Users describe app ideas in natural language, and the system generates structured application prototypes with live, interactive preview.
+A Lovable-style AI Agent App Builder. Users describe app ideas in natural language, and the system generates structured application prototypes with live, interactive preview. Saved projects can be iteratively improved with AI.
 
 ## Current Status
 
@@ -13,13 +13,18 @@ A Lovable-style AI Agent App Builder. Users describe app ideas in natural langua
 - [x] Agent step progress UI with status animation
 - [x] Dynamic, interactive app preview (tabs, forms, records, stats)
 - [x] Fallback AppSpec when API is unavailable
-- [x] **Neon PostgreSQL integration** (Step 5)
+- [x] Neon PostgreSQL integration
 - [x] Save projects to database
 - [x] Project list page with real data
 - [x] Project detail page with interactive preview
 - [x] Delete projects
 - [x] User data isolation (Clerk userId)
 - [x] Auto table creation on first request
+- [x] **AI continue iteration** (Step 6)
+- [x] `/api/iterate` for AI-powered project modification
+- [x] `PUT /api/projects/[id]` for saving iterated changes
+- [x] Quick action buttons for common modifications
+- [x] Unsaved changes indicator + Save Changes
 - [x] Vercel-ready deployment
 
 ## Tech Stack
@@ -65,51 +70,28 @@ The database table is created automatically on first API request. No manual SQL 
 | `SILICONFLOW_BASE_URL` | No | SiliconFlow API base URL (default: `https://api.siliconflow.cn/v1`) |
 | `SILICONFLOW_MODEL` | No | SiliconFlow model name (e.g. `Qwen/Qwen3-8B`) |
 
-## Database
-
-Table `projects`:
-
-```sql
-CREATE TABLE projects (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL,
-  title TEXT NOT NULL,
-  prompt TEXT NOT NULL,
-  app_spec JSONB NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-- All queries are scoped by `user_id` (Clerk userId)
-- Created automatically on first API call via `ensureProjectsTable()`
-
 ## How It Works
 
 ### `/api/generate`
-Calls SiliconFlow to generate an AppSpec with interactive preview config. Falls back gracefully if unavailable.
+Calls SiliconFlow to generate an initial AppSpec. Falls back gracefully if unavailable.
+
+### `/api/iterate`
+Calls SiliconFlow with the original prompt, current AppSpec, and a modification instruction. Returns an updated AppSpec. Falls back with visible changes if API is unavailable.
 
 ### `/api/projects`
 - `GET` — list current user's projects (newest first)
-- `POST` — save a new project with title, prompt, and AppSpec
+- `POST` — save a new project
 
 ### `/api/projects/[id]`
 - `GET` — get a single project (scoped to current user)
+- `PUT` — update project title and AppSpec (scoped to current user)
 - `DELETE` — delete a project (scoped to current user)
 
 ## Vercel Deployment
 
 1. Push code to GitHub
 2. Import the repository in [Vercel](https://vercel.com)
-3. Set all environment variables in Vercel project settings:
-   ```
-   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-   CLERK_SECRET_KEY=
-   SILICONFLOW_API_KEY=
-   SILICONFLOW_BASE_URL=https://api.siliconflow.cn/v1
-   SILICONFLOW_MODEL=
-   DATABASE_URL=
-   ```
+3. Set all environment variables in Vercel project settings
 4. `DATABASE_URL` must be the Neon connection string
 5. Deploy
 6. In the Clerk dashboard, add your production domain to allowed origins
@@ -117,6 +99,6 @@ Calls SiliconFlow to generate an AppSpec with interactive preview config. Falls 
 
 ## Current Limitations
 
-- Project update (PUT) is not yet implemented
-- No version history for projects
-- No continue-iteration on saved projects
+- No version history or rollback for iterations
+- Each iteration overwrites the previous AppSpec
+- No branching or comparison between versions

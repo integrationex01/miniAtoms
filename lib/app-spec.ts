@@ -343,6 +343,55 @@ export function normalizeAppSpec(input: unknown, prompt: string): AppSpec {
   };
 }
 
+export function createIteratedFallbackAppSpec(input: {
+  prompt: string;
+  instruction: string;
+  appSpec: AppSpec;
+}): AppSpec {
+  const spec = { ...input.appSpec };
+  const inst = input.instruction.toLowerCase();
+
+  if (inst.includes("暗色") || inst.includes("dark")) {
+    spec.theme = "dark";
+  } else if (inst.includes("colorful") || inst.includes("彩色")) {
+    spec.theme = "colorful";
+  }
+
+  const pages = [...(spec.pages || [])];
+  const features = [...(spec.features || [])];
+  const ip = spec.interactivePreview
+    ? { ...spec.interactivePreview }
+    : undefined;
+  const tabs = ip ? [...ip.tabs] : undefined;
+
+  if (inst.includes("统计") || inst.includes("analytics") || inst.includes("stats")) {
+    if (!pages.some((p) => /统计|analytic|stat/i.test(p))) {
+      pages.push("月度统计");
+    }
+    if (tabs && !tabs.some((t) => /统计|analytic|stat/i.test(t))) {
+      tabs.push("月度统计");
+    }
+    if (!features.some((f) => /统计|analytic/i.test(f))) {
+      features.push("Monthly analytics dashboard");
+    }
+  }
+
+  if (inst.includes("提醒") || inst.includes("reminder") || inst.includes("alert")) {
+    if (!features.some((f) => /提醒|reminder|alert/i.test(f))) {
+      features.push("Budget reminder notifications");
+    }
+  }
+
+  if (ip && tabs) {
+    ip.tabs = tabs;
+    spec.interactivePreview = { ...ip, tabs };
+  }
+  spec.pages = pages;
+  spec.features = features;
+
+  return normalizeAppSpec(spec, input.prompt);
+}
+
 export function extractJsonFromText(text: string): unknown {
   try {
     return JSON.parse(text);

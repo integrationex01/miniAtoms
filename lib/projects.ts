@@ -85,3 +85,22 @@ export async function deleteProject(input: {
   `) as Record<string, unknown>[];
   return rows.length > 0;
 }
+
+export async function updateProject(input: {
+  id: string;
+  userId: string;
+  title: string;
+  appSpec: AppSpec;
+}): Promise<Project | null> {
+  const sql = getSql();
+  const rows = (await sql`
+    UPDATE projects
+    SET title = ${input.title},
+        app_spec = ${JSON.stringify(input.appSpec)},
+        updated_at = NOW()
+    WHERE id = ${input.id} AND user_id = ${input.userId}
+    RETURNING id, user_id, title, prompt, app_spec, created_at, updated_at
+  `) as Record<string, unknown>[];
+  if (rows.length === 0) return null;
+  return mapRow(rows[0]);
+}

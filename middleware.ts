@@ -4,6 +4,7 @@ const isProtectedRoute = createRouteMatcher([
   "/builder(.*)",
   "/projects(.*)",
   "/api/generate(.*)",
+  "/api/iterate(.*)",
   "/api/projects(.*)",
 ]);
 
